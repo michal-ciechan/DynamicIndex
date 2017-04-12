@@ -6,11 +6,13 @@ using Bogus;
 using FluentAssertions;
 using Humanizer;
 using NUnit.Framework;
+using NUnit.Framework.Constraints;
 
 namespace DynamicDictionaryIndex
 {
+    
     [TestFixture]
-    internal class NewFile1Tests
+    internal class Tests
     {
         [SetUp]
         public void A_TestInitialise()
@@ -18,7 +20,14 @@ namespace DynamicDictionaryIndex
             //Set the randomzier seed if you wish to generate repeatable data sets.
             Randomizer.Seed = new Random(3897234);
 
-        }
+            _positionCount = 10;
+            _securityCount = 10;
+            _accountCount = 5;
+            _counterpartyCount = 3;
+            _securityTypeIdCount = 10;
+            _counterPartyTypeIdCount = 10;
+            _currencyIdCount = 10;
+    }
 
         private void Setup()
         {
@@ -60,19 +69,24 @@ namespace DynamicDictionaryIndex
         private readonly Stopwatch _stopwatch = new Stopwatch();
         private CounterParty[] _counterParties;
         private List<Position> _keys;
-        private int _positionCount = 10;
-        private int _securityCount = 10;
-        private int _accountCount = 5;
-        private int _counterpartyCount = 3;
-        private int _securityTypeIdCount = 10;
-        private long _counterPartyTypeIdCount = 10;
+        private int _positionCount;
+        private int _securityCount;
+        private int _accountCount;
+        private int _counterpartyCount;
+        private int _securityTypeIdCount;
+        private long _counterPartyTypeIdCount;
         private int _currencyIdCount;
 
-        public void WriteTime(string msg)
+        public void WriteTime(string msg, List<Position> keys = null)
         {
             var elapsed = _stopwatch.Elapsed;
 
-            Console.WriteLine(msg + " took " + elapsed.Humanize(2));
+            var format = msg + " took " + elapsed.Humanize(2);
+
+            if (keys != null)
+                format = format + " and returned " + keys.Count + " items";
+
+                Console.WriteLine(format);
 
             _stopwatch.Restart();
         }
@@ -105,14 +119,14 @@ namespace DynamicDictionaryIndex
             WriteTime("Setup Queries");
 
             _keys = index.Query(new PositionQuery{CounterPartyId =  2});
-            _keys.Should().HaveCount(5);
+            _keys.Should().HaveCount(7);
 
-            WriteTime("First CounterPartyId Query");
+            WriteTime("First CounterPartyId Query", _keys);
 
             _keys = index.Query(new PositionQuery{CounterPartyId =  2, SecurityTypeId = 3});
-            _keys.Should().HaveCount(1);
+            _keys.Should().HaveCount(3);
 
-            WriteTime("First CounterPartyId, SecurityTypeId Query");
+            WriteTime("First CounterPartyId, SecurityTypeId Query", _keys);
         }
 
         [Test]
@@ -125,6 +139,8 @@ namespace DynamicDictionaryIndex
             _counterPartyTypeIdCount = 25;
             _currencyIdCount = 50;
 
+            WriteMem("Memory Usage End");
+
             Setup();
 
             _stopwatch.Restart();
@@ -135,6 +151,7 @@ namespace DynamicDictionaryIndex
             var counterpartyDictionary = _counterParties.ToDictionary(x => x.Id);
 
             WriteTime("Create 1..1 Raw Dictionaries");
+            WriteMem("Memory Usage End");
 
             var index = new DynamicIndex<Position, PositionQuery>(_positions, x => x.Id);
 
@@ -152,27 +169,39 @@ namespace DynamicDictionaryIndex
             _keys = index.Query(new PositionQuery { CounterPartyId = 2 });
             _keys.Should().HaveCount(505);
 
-            WriteTime("First CounterPartyId Query");
+            WriteTime("First CounterPartyId Query", _keys);
 
             _keys = index.Query(new PositionQuery { CounterPartyId = 2, SecurityTypeId = 3 });
             _keys.Should().HaveCount(61);
 
-            WriteTime("First CounterPartyId, SecurityTypeId Query");
+            WriteTime("First CounterPartyId, SecurityTypeId Query", _keys);
 
             _keys = index.Query(new PositionQuery { CounterPartyId = 2, SecurityTypeId = 3, CurrencyId = 5});
             _keys.Should().HaveCount(1);
 
-            WriteTime("First CounterPartyId, SecurityTypeId, CurrencyId Query");
+            WriteTime("First CounterPartyId, SecurityTypeId, CurrencyId Query", _keys);
 
             _keys = index.Query(new PositionQuery { CounterPartyId = 2, SecurityTypeId = 3, CurrencyId = 2 });
             _keys.Should().HaveCount(2);
 
-            WriteTime("2nd CounterPartyId, SecurityTypeId, CurrencyId Query");
+            WriteTime("2nd CounterPartyId, SecurityTypeId, CurrencyId Query", _keys);
 
             _keys = index.Query(new PositionQuery { CounterPartyId = 2 });
             _keys.Should().HaveCount(505);
 
-            WriteTime("2nd CounterPartyId Query");
+            WriteTime("2nd CounterPartyId Query", _keys);
+            WriteMem("Memory Usage End");
+
+
+        }
+
+        private void WriteMem(string msg)
+        {
+            _stopwatch.Restart();
+            GC.Collect();
+            var elapsed = _stopwatch.Elapsed;
+            Console.WriteLine($"{msg} {GC.GetTotalMemory(false).Bytes().ToString("#.#")} (GC took {elapsed.Humanize()})");
+            _stopwatch.Restart();
         }
     }
 }

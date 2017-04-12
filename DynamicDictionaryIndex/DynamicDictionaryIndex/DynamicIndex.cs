@@ -6,6 +6,14 @@ using NUnit.Framework;
 
 namespace DynamicDictionaryIndex
 {
+    // Potential Improvements
+
+    // 1. Rather than List<long> for keys have custom List implementation that does not do `Array.CopyTo` whenever an item is added/removed, but instead use Int64.MinValue to indicate end of array, and -1 to skip 1 index, -2 skip 2 indexes etc.
+    // end up getting [1,2,3,4,5] -> Remove 3 = [1,2,-1,4,5] -> Remove 2 = [1,-2,-1,4,5]. Keep count of how many holes in an index + add a Re-organise method to carry out the Array.CopyTo
+
+    // 2. Keep count of most least used indexes so that we know which ones to evict
+
+    // 3. Custom Index group + index structures to remove so much boilerplate code. Possibly use IL Generation/Weaving
     public class DynamicIndex<TItem, TQuery>
     {
         private readonly Dictionary<long, TItem> _dictionary;
